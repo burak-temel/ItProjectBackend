@@ -6,10 +6,12 @@ using Core.Aspects.Autofac.Logging;
 using Core.Aspects.Autofac.Validation;
 using Core.CrossCuttingConcerns.Logging.Serilog.Loggers;
 using Core.Entities.Concrete;
+using Core.Utilities.Mail;
 using Core.Utilities.Results;
 using Core.Utilities.Security.Hashing;
 using DataAccess.Abstract;
 using MediatR;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,15 +27,17 @@ namespace Business.Handlers.Authorizations.Commands
         public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, IResult>
         {
             private readonly IUserRepository _userRepository;
+            private readonly IMailService _mailService;
 
 
-            public RegisterUserCommandHandler(IUserRepository userRepository)
+
+            public RegisterUserCommandHandler(IUserRepository userRepository, IMailService mailService)
             {
                 _userRepository = userRepository;
-            }
+                _mailService = mailService;
+        }
 
 
-            [SecuredOperation(Priority = 1)]
             [ValidationAspect(typeof(RegisterUserValidator), Priority = 2)]
             [CacheRemoveAspect("Get")]
             [LogAspect(typeof(FileLogger))]
@@ -59,6 +63,14 @@ namespace Business.Handlers.Authorizations.Commands
 
                 _userRepository.Add(user);
                 await _userRepository.SaveChangesAsync();
+
+
+                _mailService.Send(new EmailMessage
+                {
+                    ToAddress = user.Email,
+                    Content = "Sisteme başarı ile kayıt olundu",
+                    Subject = "Kayıt"
+                });
                 return new SuccessResult(Messages.Added);
             }
         }

@@ -18,24 +18,22 @@ namespace Core.Utilities.Mail
         public void Send(EmailMessage emailMessage)
         {
             var message = new MimeMessage();
-            message.To.AddRange(emailMessage.ToAddresses.Select(x => new MailboxAddress(x.Name, x.Address)));
-            message.From.AddRange(emailMessage.FromAddresses.Select(x => new MailboxAddress(x.Name, x.Address)));
 
+            message.From.Add(MailboxAddress.Parse(_configuration.GetSection("EmailConfiguration").GetSection("UserNAme").Value));
+            message.To.Add(MailboxAddress.Parse(emailMessage.ToAddress));
             message.Subject = emailMessage.Subject;
-
-
-            var messageBody = string.Format(emailMessage.Subject, emailMessage.Content);
-
             message.Body = new TextPart(TextFormat.Html)
             {
-                Text = messageBody
+                Text = emailMessage.Content
             };
+
             using (var emailClient = new SmtpClient())
             {
                 emailClient.Connect(
                     _configuration.GetSection("EmailConfiguration").GetSection("SmtpServer").Value,
                     Convert.ToInt32(_configuration.GetSection("EmailConfiguration").GetSection("SmtpPort").Value),
                     MailKit.Security.SecureSocketOptions.Auto);
+                emailClient.Authenticate(_configuration.GetSection("EmailConfiguration").GetSection("UserName").Value, _configuration.GetSection("EmailConfiguration").GetSection("Password").Value);
                 emailClient.Send(message);
                 emailClient.Disconnect(true);
             }
